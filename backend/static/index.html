@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ultra Doc Intelligence</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #0f766e;
+      --primary-hover: #115e59;
+      --border: #e2e8f0;
+      --ok: #166534;
+      --err: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(180deg, #eef5ff 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+
+    .sub {
+      margin: 0 0 24px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    input[type="file"],
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      color: #fff;
+      background: var(--primary);
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    .ghost {
+      background: #334155;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0b1220;
+      color: #dbeafe;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.86rem;
+      overflow-x: auto;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.92rem;
+      min-height: 20px;
+    }
+
+    .ok {
+      color: var(--ok);
+    }
+
+    .err {
+      color: var(--err);
+    }
+
+    .result-block {
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .result-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .source-list {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .source-list li {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Ultra Doc Intelligence</h1>
+    <p class="sub">Upload a document, ask questions, and extract structured shipment data.</p>
+
+    <section class="card">
+      <label for="fileInput">Upload Logistics Document</label>
+      <input id="fileInput" type="file" />
+      <div class="row">
+        <button id="uploadBtn">Upload</button>
+      </div>
+      <div id="uploadStatus" class="status"></div>
+    </section>
+
+    <section class="card">
+      <label for="queryInput">Ask A Question</label>
+      <input id="queryInput" type="text" placeholder="What is the shipment ID?" />
+      <div class="row">
+        <button id="askBtn">Ask</button>
+      </div>
+      <div id="askStatus" class="status"></div>
+      <div id="askOutput"></div>
+    </section>
+
+    <section class="card">
+      <label>Extract Structured Data</label>
+      <div class="row">
+        <button id="extractBtn" class="ghost">Extract</button>
+      </div>
+      <div id="extractStatus" class="status"></div>
+      <div id="extractOutput"></div>
+    </section>
+  </main>
+
+  <script>
+    function showStatus(id, text, isError) {
+      const el = document.getElementById(id);
+      el.className = "status " + (isError ? "err" : "ok");
+      el.textContent = text || "";
+    }
+
+    function renderJson(targetId, payload) {
+      const target = document.getElementById(targetId);
+      target.innerHTML = "";
+      const pre = document.createElement("pre");
+      pre.textContent = JSON.stringify(payload, null, 2);
+      target.appendChild(pre);
+    }
+
+    function renderAskResult(payload) {
+      const target = document.getElementById("askOutput");
+      target.innerHTML = "";
+
+      const answerBlock = document.createElement("div");
+      answerBlock.className = "result-block";
+      answerBlock.innerHTML =
+        '<div class="result-title">Answer</div>' +
+        "<div>" + (payload.answer || "No answer available.") + "</div>";
+      target.appendChild(answerBlock);
+
+      const confidenceBlock = document.createElement("div");
+      confidenceBlock.className = "result-block";
+      const confidenceValue =
+        typeof payload.confidence === "number"
+          ? payload.confidence.toFixed(2)
+          : "N/A";
+      confidenceBlock.innerHTML =
+        '<div class="result-title">Confidence</div>' +
+        "<div>" + confidenceValue + "</div>";
+      target.appendChild(confidenceBlock);
+
+      const sourcesBlock = document.createElement("div");
+      sourcesBlock.className = "result-block";
+      const title = document.createElement("div");
+      title.className = "result-title";
+      title.textContent = "Sources";
+      sourcesBlock.appendChild(title);
+
+      const sources = Array.isArray(payload.sources) ? payload.sources : [];
+      if (!sources.length) {
+        const empty = document.createElement("div");
+        empty.textContent = "No sources returned.";
+        sourcesBlock.appendChild(empty);
+      } else {
+        const ul = document.createElement("ul");
+        ul.className = "source-list";
+        sources.forEach((source) => {
+          const li = document.createElement("li");
+          li.textContent = String(source || "");
+          ul.appendChild(li);
+        });
+        sourcesBlock.appendChild(ul);
+      }
+
+      target.appendChild(sourcesBlock);
+    }
+
+    async function parseApiResponse(response) {
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (_) {
+        payload = { error: "Backend returned a non-JSON response." };
+      }
+      return payload;
+    }
+
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const fileInput = document.getElementById("fileInput");
+      if (!fileInput.files || !fileInput.files[0]) {
+        showStatus("uploadStatus", "Please choose a file first.", true);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+      showStatus("uploadStatus", "Uploading and indexing document...", false);
+
+      try {
+        const response = await fetch("/upload", { method: "POST", body: formData });
+        const payload = await parseApiResponse(response);
+        if (!response.ok) {
+          showStatus("uploadStatus", payload.error || "Upload failed.", true);
+          return;
+        }
+        showStatus("uploadStatus", payload.message || "Upload completed.", false);
+      } catch (err) {
+        showStatus("uploadStatus", "Upload failed: " + err.message, true);
+      }
+    });
+
+    document.getElementById("askBtn").addEventListener("click", async () => {
+      const query = document.getElementById("queryInput").value.trim();
+      if (!query) {
+        showStatus("askStatus", "Please enter a question.", true);
+        return;
+      }
+
+      showStatus("askStatus", "Querying document...", false);
+      try {
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+        const payload = await parseApiResponse(response);
+        if (!response.ok) {
+          showStatus("askStatus", payload.error || "Question request failed.", true);
+          renderJson("askOutput", payload);
+          return;
+        }
+        showStatus("askStatus", "Answer ready.", false);
+        renderAskResult(payload);
+      } catch (err) {
+        showStatus("askStatus", "Question failed: " + err.message, true);
+      }
+    });
+
+    document.getElementById("extractBtn").addEventListener("click", async () => {
+      showStatus("extractStatus", "Extracting fields...", false);
+      try {
+        const response = await fetch("/extract", { method: "POST" });
+        const payload = await parseApiResponse(response);
+        if (!response.ok) {
+          showStatus("extractStatus", payload.error || "Extraction failed.", true);
+          renderJson("extractOutput", payload);
+          return;
+        }
+        showStatus("extractStatus", "Extraction complete.", false);
+        renderJson("extractOutput", payload.data || payload);
+      } catch (err) {
+        showStatus("extractStatus", "Extraction failed: " + err.message, true);
+      }
+    });
+  </script>
+</body>
+</html>

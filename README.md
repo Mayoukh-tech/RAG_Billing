@@ -6,11 +6,11 @@ It provides:
 - Document upload (`.pdf`, `.docx`, `.txt`, `.md`, `.csv`, `.json`)
 - Retrieval-Augmented Generation (RAG) question answering
 - Structured shipment data extraction as JSON
-- Streamlit frontend + Flask backend
+- Browser frontend + Flask backend API (Vercel-ready)
 
 ## Tech Stack
 
-- Frontend: Streamlit
+- Frontend: HTML/CSS/JS (served by Flask) + optional Streamlit local app
 - Backend API: Flask + Flask-CORS
 - Retrieval: SentenceTransformers + FAISS (cosine similarity)
 - LLM: Google Gemini via `google-genai`
@@ -22,15 +22,19 @@ It provides:
 ultra-doc-intelligence/
 |-- backend/
 |   |-- app.py            # Flask API routes
+|   |-- static/index.html # Browser UI served at /
 |   |-- config.py         # Env config + Gemini client
 |   |-- parser.py         # PDF/DOCX/TXT parsing + cleanup
 |   |-- embeddings.py     # Chunking + embedding + FAISS index
 |   |-- rag_pipeline.py   # Retrieve + answer + confidence
 |   `-- extractor.py      # Structured JSON extraction
 |-- frontend/
-|   `-- app.py            # Streamlit UI
+|   `-- app.py            # Optional Streamlit UI for local use
+|-- api/
+|   `-- index.py          # Vercel Python entrypoint
 |-- data/
 |   `-- uploads/          # Uploaded docs saved here
+|-- vercel.json           # Vercel routing/build config
 |-- requirements.txt
 |-- .env.example
 `-- README.md
@@ -101,32 +105,34 @@ python app.py
 Backend default URL:
 - `http://127.0.0.1:5000`
 
-## 4) Start the Frontend (Streamlit)
+## 4) Open The Browser UI
 
-Open terminal 2 at project root:
-
-### Windows
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-streamlit run frontend/app.py
-```
-
-### macOS/Linux
-
-```bash
-source .venv/bin/activate
-streamlit run frontend/app.py
-```
-
-Frontend default URL:
-- `http://localhost:8501`
+Visit:
+- `http://127.0.0.1:5000`
 
 ## 5) How to Use
 
-1. Upload a logistics document from the Streamlit app.
+1. Upload a logistics document from the web UI.
 2. Ask questions in natural language.
 3. Click **Extract Structured Data** to get shipment fields in JSON.
+
+## Deploy To Vercel
+
+1. Push this repo to GitHub.
+2. In Vercel, click **Add New > Project** and import the repo.
+3. Set Environment Variables in Vercel project settings:
+   - `GEMINI_API_KEY` (required)
+   - `GEMINI_MODEL` (optional, default is `gemini-2.5-flash`)
+4. Deploy.
+
+After deployment:
+- Open your Vercel URL to use the app UI.
+- API routes are available at `/upload`, `/ask`, and `/extract`.
+
+Notes for Vercel serverless runtime:
+- Uploaded files are stored in `/tmp` during a request lifecycle (ephemeral).
+- In-memory FAISS/chunks can reset on cold starts or instance changes.
+- For production persistence, move docs/chunks/index to external storage (DB/object store/vector DB).
 
 
 ## API Endpoints
@@ -247,5 +253,4 @@ Current `requirements.txt`:
 - Backend currently keeps FAISS index and chunks in memory only.
 - `data/uploads/` stores uploaded files.
 - CORS is enabled for local frontend-backend communication.
-
 

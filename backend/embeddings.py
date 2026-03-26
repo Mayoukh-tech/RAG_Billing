@@ -1,8 +1,19 @@
-from sentence_transformers import SentenceTransformer
-import numpy as np
-import faiss
+import os
 import re
-model = SentenceTransformer("all-MiniLM-L6-v2")
+
+import faiss
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+_model = None
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        model_name = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+        _model = SentenceTransformer(model_name)
+    return _model
 
 def chunk_text(text, chunk_size=500, overlap_words=25):
 
@@ -33,6 +44,7 @@ def chunk_text(text, chunk_size=500, overlap_words=25):
     return chunks
 
 def create_embeddings(chunks):
+    model = _get_model()
     return model.encode(chunks, normalize_embeddings=True)
 
 

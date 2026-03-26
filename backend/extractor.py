@@ -2,6 +2,20 @@ from config import get_genai_client, GEMINI_MODEL
 import json
 import re
 
+EXPECTED_FIELDS = [
+    "shipment_id",
+    "shipper",
+    "consignee",
+    "pickup_datetime",
+    "delivery_datetime",
+    "equipment_type",
+    "mode",
+    "rate",
+    "currency",
+    "weight",
+    "carrier_name",
+]
+
 
 def _extract_json_from_text(text):
     if not text:
@@ -27,6 +41,29 @@ def _extract_json_from_text(text):
     return {"raw_output": text, "error": "Model did not return valid JSON"}
 
 
+def _normalize_extraction_payload(payload):
+    if not isinstance(payload, dict):
+        return {field: None for field in EXPECTED_FIELDS}
+
+    normalized = {}
+    for field in EXPECTED_FIELDS:
+        value = payload.get(field, None)
+
+        if field == "rate" and value is not None:
+            if isinstance(value, str):
+                numeric = value.replace(",", "").strip()
+                try:
+                    value = float(numeric) if "." in numeric else int(numeric)
+                except ValueError:
+                    value = None
+            elif not isinstance(value, (int, float)):
+                value = None
+
+        normalized[field] = value
+
+    return normalized
+
+
 def extract_data(text):
 
     prompt = """
@@ -37,8 +74,8 @@ Your task is to extract structured shipment data from the document.
 IMPORTANT RULES:
 - Return ONLY valid JSON (no explanations, no markdown)
 - Do NOT hallucinate values
-- If a field is missing → return null
-- If multiple values exist → choose the most relevant shipment-level value
+- If a field is missing, return null
+- If multiple values exist, choose the most relevant shipment-level value
 - Dates must be in ISO format: YYYY-MM-DD HH:MM (if time exists)
 - Numbers should be clean (no commas, include units where applicable)
 
@@ -57,10 +94,10 @@ FIELD DEFINITIONS:
 
 SPECIAL HANDLING:
 - Tables may contain key data (e.g., weight, commodity)
-- "Pickup" section → shipper
-- "Drop" section → consignee
-- "Carrier Details" → carrier_name, equipment_type, rate
-- "Rate Breakdown" → rate and currency
+- "Pickup" section maps to shipper
+- "Drop" section maps to consignee
+- "Carrier Details" maps to carrier_name, equipment_type, rate
+- "Rate Breakdown" maps to rate and currency
 
 OUTPUT FORMAT:
 {
@@ -87,6 +124,7 @@ DOCUMENT:
     )
 
     try:
-        return _extract_json_from_text(response.text)
+        parsed = _extract_json_from_text(response.text)
+        return _normalize_extraction_payload(parsed)
     except Exception as e:
         return {"error": f"Extraction failed: {e}"}

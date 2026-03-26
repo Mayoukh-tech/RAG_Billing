@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
@@ -8,13 +8,21 @@ from embeddings import chunk_text, create_embeddings, build_faiss_index
 from rag_pipeline import ask_question
 from extractor import extract_data
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
 
 chunks_store = []
 faiss_index = None
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-UPLOAD_DIR = os.path.join(PROJECT_ROOT, "data", "uploads")
+if os.getenv("VERCEL"):
+    UPLOAD_DIR = "/tmp/uploads"
+else:
+    UPLOAD_DIR = os.path.join(PROJECT_ROOT, "data", "uploads")
+
+
+@app.route("/", methods=["GET"])
+def home():
+    return send_from_directory(app.static_folder, "index.html")
 
 
 @app.route("/upload", methods=["POST"])
@@ -74,7 +82,6 @@ def ask():
 
         result = ask_question(query, faiss_index, chunks_store)
 
-        # 👇 normalize result
         return jsonify({
             "answer": result.get("answer", str(result)),
             "confidence": result.get("confidence", 0.0),
@@ -89,6 +96,7 @@ def ask():
             "sources": [],
             "error": str(e)
         }), 500
+
 
 @app.route("/extract", methods=["POST"])
 def extract():
