@@ -10,9 +10,9 @@ It provides:
 
 ## Tech Stack
 
-- Frontend: HTML/CSS/JS (served by Flask) + optional Streamlit local app
+- Frontend: HTML/CSS/JS (served by Flask)
 - Backend API: Flask + Flask-CORS
-- Retrieval: SentenceTransformers + FAISS (cosine similarity)
+- Retrieval: Lightweight hashed embeddings + cosine similarity (numpy)
 - LLM: Google Gemini via `google-genai`
 - Document parsing: `pdfplumber`, `pypdf`, `python-docx`
 
@@ -25,11 +25,9 @@ ultra-doc-intelligence/
 |   |-- static/index.html # Browser UI served at /
 |   |-- config.py         # Env config + Gemini client
 |   |-- parser.py         # PDF/DOCX/TXT parsing + cleanup
-|   |-- embeddings.py     # Chunking + embedding + FAISS index
+|   |-- embeddings.py     # Chunking + lightweight embeddings + index
 |   |-- rag_pipeline.py   # Retrieve + answer + confidence
 |   `-- extractor.py      # Structured JSON extraction
-|-- frontend/
-|   `-- app.py            # Optional Streamlit UI for local use
 |-- api/
 |   `-- index.py          # Vercel Python entrypoint
 |-- data/
@@ -131,7 +129,7 @@ After deployment:
 
 Notes for Vercel serverless runtime:
 - Uploaded files are stored in `/tmp` during a request lifecycle (ephemeral).
-- In-memory FAISS/chunks can reset on cold starts or instance changes.
+- In-memory index/chunks can reset on cold starts or instance changes.
 - For production persistence, move docs/chunks/index to external storage (DB/object store/vector DB).
 
 
@@ -215,9 +213,6 @@ Defaults:
 Current `requirements.txt`:
 - flask
 - flask-cors
-- streamlit
-- faiss-cpu
-- sentence-transformers
 - pypdf
 - pdfplumber
 - python-docx
@@ -250,7 +245,6 @@ Current `requirements.txt`:
 
 ## Development Notes
 
-- Backend currently keeps FAISS index and chunks in memory only.
+- Backend currently keeps the retrieval index and chunks in memory only.
 - `data/uploads/` stores uploaded files.
 - CORS is enabled for local frontend-backend communication.
-

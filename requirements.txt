@@ -1,8 +1,5 @@
 flask
 flask-cors
-streamlit
-faiss-cpu
-sentence-transformers
 pypdf
 pdfplumber
 python-docx

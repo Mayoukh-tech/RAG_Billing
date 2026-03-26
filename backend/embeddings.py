@@ -1,19 +1,6 @@
-import os
 import re
 
-import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
-
-_model = None
-
-
-def _get_model():
-    global _model
-    if _model is None:
-        model_name = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        _model = SentenceTransformer(model_name)
-    return _model
 
 def chunk_text(text, chunk_size=500, overlap_words=25):
 
@@ -44,12 +31,30 @@ def chunk_text(text, chunk_size=500, overlap_words=25):
     return chunks
 
 def create_embeddings(chunks):
-    model = _get_model()
-    return model.encode(chunks, normalize_embeddings=True)
+    """
+    Lightweight hashed bag-of-words embeddings for serverless environments.
+    Keeps dependencies small enough for Vercel Lambda limits.
+    """
+    if not chunks:
+        return np.zeros((0, 768), dtype=np.float32)
+
+    dim = 768
+    vectors = np.zeros((len(chunks), dim), dtype=np.float32)
+
+    for i, text in enumerate(chunks):
+        tokens = re.findall(r"[A-Za-z0-9_]+", text.lower())
+        for token in tokens:
+            idx = hash(token) % dim
+            vectors[i, idx] += 1.0
+
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    vectors = vectors / norms
+    return vectors
 
 
 def build_faiss_index(embeddings):
-    dim = len(embeddings[0])
-    index = faiss.IndexFlatIP(dim)
-    index.add(np.array(embeddings, dtype=np.float32))
-    return index
+    # Retained function name to avoid changing app imports.
+    if embeddings is None:
+        return None
+    return np.array(embeddings, dtype=np.float32)
